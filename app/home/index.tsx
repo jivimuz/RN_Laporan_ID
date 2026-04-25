@@ -1,36 +1,47 @@
-import { router } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+    createReport,
+    deleteReport,
+    getActiveReports,
+    getReportsByMonth,
+    updateReport
+} from "@/services/storage";
+import { getUserName } from "@/services/userService";
+import { Report, ReportFormData } from "@/types";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  createReport,
-  deleteReport,
-  getReportsByMonth,
-  updateReport,
-} from '../../services/storage';
-import { getUserName } from '../../services/userService';
-import { Report, ReportFormData } from '../../types';
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from "react-native";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-  'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "Mei",
+  "Jun",
+  "Jul",
+  "Agu",
+  "Sep",
+  "Okt",
+  "Nov",
+  "Des",
 ];
 
-const CATEGORIES = ['Umum', 'Keuangan', 'Operasional', 'SDM', 'Lainnya'];
+const CATEGORIES = ["Umum", "Keuangan", "Operasional", "SDM", "Lainnya"];
 
 const today = new Date();
 
@@ -46,41 +57,51 @@ const buildYears = () => {
 
 const formatDate = (iso: string) => {
   const d = new Date(iso);
-  return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1)
+  return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1)
     .toString()
-    .padStart(2, '0')}/${d.getFullYear()}`;
+    .padStart(2, "0")}/${d.getFullYear()}`;
 };
 
 const emptyForm = (): ReportFormData => ({
-  title: '',
-  description: '',
+  title: "",
+  description: "",
   category: CATEGORIES[0],
+  transactionType: "in",
   amount: undefined,
-  date: today.toISOString().split('T')[0],
+  date: today.toISOString().split("T")[0],
 });
 
 // ─── Report Form Modal ─────────────────────────────────────────────────────────
 
 interface FormModalProps {
   visible: boolean;
-  mode: 'create' | 'edit';
+  mode: "create" | "edit";
   initialData?: Report;
   onClose: () => void;
   onSave: (data: ReportFormData) => Promise<void>;
 }
 
-function ReportFormModal({ visible, mode, initialData, onClose, onSave }: FormModalProps) {
+function ReportFormModal({
+  visible,
+  mode,
+  initialData,
+  onClose,
+  onSave,
+}: FormModalProps) {
   const [form, setForm] = useState<ReportFormData>(emptyForm());
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<keyof ReportFormData, string>>>({});
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof ReportFormData, string>>
+  >({});
 
   useEffect(() => {
     if (visible) {
-      if (mode === 'edit' && initialData) {
+      if (mode === "edit" && initialData) {
         setForm({
           title: initialData.title,
           description: initialData.description,
           category: initialData.category,
+          transactionType: initialData.transactionType,
           amount: initialData.amount,
           date: initialData.date,
         });
@@ -93,61 +114,83 @@ function ReportFormModal({ visible, mode, initialData, onClose, onSave }: FormMo
 
   const validate = () => {
     const e: Partial<Record<keyof ReportFormData, string>> = {};
-    if (!form.title.trim()) e.title = 'Judul wajib diisi';
-    if (!form.description.trim()) e.description = 'Deskripsi wajib diisi';
-    if (!form.date) e.date = 'Tanggal wajib diisi';
+    if (!form.title.trim()) e.title = "Judul wajib diisi";
+    if (!form.description.trim()) e.description = "Deskripsi wajib diisi";
+    if (!form.date) e.date = "Tanggal wajib diisi";
     return e;
   };
 
   const handleSave = async () => {
     const e = validate();
-    if (Object.keys(e).length > 0) { setErrors(e); return; }
+    if (Object.keys(e).length > 0) {
+      setErrors(e);
+      return;
+    }
     setSaving(true);
     try {
       await onSave(form);
       onClose();
-    } catch {
-      Alert.alert('Error', 'Gagal menyimpan data.');
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Silakan coba lagi.";
+      Alert.alert("Error", `Gagal menyimpan data. ${message}`);
     } finally {
       setSaving(false);
     }
   };
 
-  const set = (key: keyof ReportFormData, value: string | number | undefined) => {
+  const set = (
+    key: keyof ReportFormData,
+    value: string | number | undefined,
+  ) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <KeyboardAvoidingView
         style={styles.modalOverlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.modalSheet}>
           <View style={styles.modalHandle} />
           <Text style={styles.modalTitle}>
-            {mode === 'create' ? 'Buat Laporan Baru' : 'Edit Laporan'}
+            {mode === "create" ? "Buat Laporan Baru" : "Edit Laporan"}
           </Text>
 
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             <FormField label="Judul *" error={errors.title}>
               <TextInput
                 style={[styles.input, errors.title && styles.inputError]}
                 placeholder="Judul laporan"
                 placeholderTextColor="#9CA3AF"
                 value={form.title}
-                onChangeText={(t) => set('title', t)}
+                onChangeText={(t) => set("title", t)}
               />
             </FormField>
 
             <FormField label="Deskripsi *" error={errors.description}>
               <TextInput
-                style={[styles.input, styles.textArea, errors.description && styles.inputError]}
+                style={[
+                  styles.input,
+                  styles.textArea,
+                  errors.description && styles.inputError,
+                ]}
                 placeholder="Isi deskripsi laporan"
                 placeholderTextColor="#9CA3AF"
                 value={form.description}
-                onChangeText={(t) => set('description', t)}
+                onChangeText={(t) => set("description", t)}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
@@ -155,14 +198,26 @@ function ReportFormModal({ visible, mode, initialData, onClose, onSave }: FormMo
             </FormField>
 
             <FormField label="Kategori">
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.chipRow}
+              >
                 {CATEGORIES.map((cat) => (
                   <TouchableOpacity
                     key={cat}
-                    style={[styles.chip, form.category === cat && styles.chipActive]}
-                    onPress={() => set('category', cat)}
+                    style={[
+                      styles.chip,
+                      form.category === cat && styles.chipActive,
+                    ]}
+                    onPress={() => set("category", cat)}
                   >
-                    <Text style={[styles.chipText, form.category === cat && styles.chipTextActive]}>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        form.category === cat && styles.chipTextActive,
+                      ]}
+                    >
                       {cat}
                     </Text>
                   </TouchableOpacity>
@@ -170,16 +225,57 @@ function ReportFormModal({ visible, mode, initialData, onClose, onSave }: FormMo
               </ScrollView>
             </FormField>
 
+            <FormField label="Tipe Transaksi">
+              <View style={styles.typeRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.typeChip,
+                    form.transactionType === "in" && styles.typeChipActiveIn,
+                  ]}
+                  onPress={() => set("transactionType", "in")}
+                >
+                  <Text
+                    style={[
+                      styles.typeChipText,
+                      form.transactionType === "in" &&
+                        styles.typeChipTextActive,
+                    ]}
+                  >
+                    Masuk
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.typeChip,
+                    form.transactionType === "out" && styles.typeChipActiveOut,
+                  ]}
+                  onPress={() => set("transactionType", "out")}
+                >
+                  <Text
+                    style={[
+                      styles.typeChipText,
+                      form.transactionType === "out" &&
+                        styles.typeChipTextActive,
+                    ]}
+                  >
+                    Keluar
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </FormField>
+
             <FormField label="Nominal (opsional)">
               <TextInput
                 style={styles.input}
                 placeholder="Contoh: 500000"
                 placeholderTextColor="#9CA3AF"
-                value={form.amount?.toString() ?? ''}
+                value={form.amount?.toString() ?? ""}
                 onChangeText={(t) => {
                   // Remove non-numeric characters except a single leading decimal point
-                  const cleaned = t.replace(/[^0-9.]/g, '').replace(/^(\d*\.?\d*).*$/, '$1');
-                  set('amount', cleaned ? parseFloat(cleaned) : undefined);
+                  const cleaned = t
+                    .replace(/[^0-9.]/g, "")
+                    .replace(/^(\d*\.?\d*).*$/, "$1");
+                  set("amount", cleaned ? parseFloat(cleaned) : undefined);
                 }}
                 keyboardType="numeric"
               />
@@ -191,7 +287,7 @@ function ReportFormModal({ visible, mode, initialData, onClose, onSave }: FormMo
                 placeholder="YYYY-MM-DD"
                 placeholderTextColor="#9CA3AF"
                 value={form.date}
-                onChangeText={(t) => set('date', t)}
+                onChangeText={(t) => set("date", t)}
                 keyboardType="numbers-and-punctuation"
               />
             </FormField>
@@ -229,28 +325,42 @@ interface ViewModalProps {
   onDelete: () => void;
 }
 
-function ReportViewModal({ visible, report, onClose, onEdit, onDelete }: ViewModalProps) {
+function ReportViewModal({
+  visible,
+  report,
+  onClose,
+  onEdit,
+  onDelete,
+}: ViewModalProps) {
   if (!report) return null;
 
   const handleDelete = () => {
-    Alert.alert(
-      'Hapus Laporan',
-      `Yakin ingin menghapus "${report.title}"?`,
-      [
-        { text: 'Batal', style: 'cancel' },
-        { text: 'Hapus', style: 'destructive', onPress: onDelete },
-      ]
-    );
+    Alert.alert("Hapus Laporan", `Yakin ingin menghapus "${report.title}"?`, [
+      { text: "Batal", style: "cancel" },
+      { text: "Hapus", style: "destructive", onPress: onDelete },
+    ]);
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View style={styles.modalOverlay}>
         <View style={styles.modalSheet}>
           <View style={styles.modalHandle} />
           <View style={styles.viewHeader}>
-            <Text style={styles.modalTitle} numberOfLines={2}>{report.title}</Text>
-            <View style={[styles.badge, { backgroundColor: badgeColor(report.category) }]}>
+            <Text style={styles.modalTitle} numberOfLines={2}>
+              {report.title}
+            </Text>
+            <View
+              style={[
+                styles.badge,
+                { backgroundColor: badgeColor(report.category) },
+              ]}
+            >
               <Text style={styles.badgeText}>{report.category}</Text>
             </View>
           </View>
@@ -260,7 +370,7 @@ function ReportViewModal({ visible, report, onClose, onEdit, onDelete }: ViewMod
             {report.amount != null && (
               <InfoRow
                 label="Nominal"
-                value={`Rp ${report.amount.toLocaleString('id-ID')}`}
+                value={`Rp ${report.amount.toLocaleString("id-ID")}`}
               />
             )}
             <InfoRow label="Dibuat" value={formatDate(report.createdAt)} />
@@ -319,20 +429,21 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 const BADGE_COLORS: Record<string, string> = {
-  Umum: '#6366F1',
-  Keuangan: '#10B981',
-  Operasional: '#F59E0B',
-  SDM: '#EC4899',
-  Lainnya: '#94A3B8',
+  Umum: "#6366F1",
+  Keuangan: "#10B981",
+  Operasional: "#F59E0B",
+  SDM: "#EC4899",
+  Lainnya: "#94A3B8",
 };
 
-const badgeColor = (cat: string) => BADGE_COLORS[cat] ?? '#94A3B8';
+const badgeColor = (cat: string) => BADGE_COLORS[cat] ?? "#94A3B8";
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
-  const [userName, setUserName] = useState('');
+  const [userName, setUserName] = useState("");
   const [reports, setReports] = useState<Report[]>([]);
+  const [allReports, setAllReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1);
@@ -347,29 +458,60 @@ export default function HomeScreen() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const [name, data] = await Promise.all([
-      getUserName(),
-      getReportsByMonth(selectedMonth, selectedYear),
-    ]);
-    if (name) setUserName(name);
-    setReports(data);
-    setLoading(false);
+    try {
+      const [name, data, allData] = await Promise.all([
+        getUserName(),
+        getReportsByMonth(selectedMonth, selectedYear),
+        getActiveReports(),
+      ]);
+      if (name) setUserName(name);
+      setReports(data);
+      setAllReports(allData);
+    } catch {
+      setReports([]);
+      setAllReports([]);
+    } finally {
+      setLoading(false);
+    }
   }, [selectedMonth, selectedYear]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData]),
+  );
+
   // Scroll month selector to selected month
   useEffect(() => {
     setTimeout(() => {
-      monthScrollRef.current?.scrollTo({ x: (selectedMonth - 1) * MONTH_ITEM_WIDTH, animated: true });
+      monthScrollRef.current?.scrollTo({
+        x: (selectedMonth - 1) * MONTH_ITEM_WIDTH,
+        animated: true,
+      });
     }, MONTH_SCROLL_DELAY_MS);
   }, [selectedMonth]);
 
   const handleCreate = async (data: ReportFormData) => {
-    await createReport(data);
-    await loadData();
+    const created = await createReport(data);
+
+    // Keep filter in sync with newly created data so user sees it immediately.
+    const [year, month] = created.date.split("-").map(Number);
+    if (Number.isFinite(year) && Number.isFinite(month)) {
+      setSelectedYear(year);
+      setSelectedMonth(month);
+      try {
+        const refreshed = await getReportsByMonth(month, year);
+        setReports(refreshed);
+        const refreshedAll = await getActiveReports();
+        setAllReports(refreshedAll);
+      } catch {
+        // Ignore refresh errors here; creation has already succeeded.
+      }
+    }
   };
 
   const handleUpdate = async (data: ReportFormData) => {
@@ -398,18 +540,31 @@ export default function HomeScreen() {
   };
 
   const years = buildYears();
+  const signedAmount = (report: Report) => {
+    const amount = typeof report.amount === "number" ? report.amount : 0;
+    return report.transactionType === "out" ? -amount : amount;
+  };
+
+  const monthTotal = reports.reduce(
+    (sum, report) => sum + signedAmount(report),
+    0,
+  );
+  const currentBalance = allReports.reduce(
+    (sum, report) => sum + signedAmount(report),
+    0,
+  );
 
   return (
     <View style={styles.container}>
       {/* ── Header ── */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.greeting}>Halo, {userName || '...'} 👋</Text>
+          <Text style={styles.greeting}>Halo, {userName || "..."} 👋</Text>
           <Text style={styles.headerSub}>Laporan Anda</Text>
         </View>
         <TouchableOpacity
           style={styles.settingsBtn}
-          onPress={() => router.push('/settings')}
+          onPress={() => router.push("/setting" as any)}
           activeOpacity={0.7}
         >
           <Text style={styles.settingsIcon}>⚙️</Text>
@@ -423,10 +578,18 @@ export default function HomeScreen() {
           {years.map((y) => (
             <TouchableOpacity
               key={y}
-              style={[styles.yearBtn, selectedYear === y && styles.yearBtnActive]}
+              style={[
+                styles.yearBtn,
+                selectedYear === y && styles.yearBtnActive,
+              ]}
               onPress={() => setSelectedYear(y)}
             >
-              <Text style={[styles.yearBtnText, selectedYear === y && styles.yearBtnTextActive]}>
+              <Text
+                style={[
+                  styles.yearBtnText,
+                  selectedYear === y && styles.yearBtnTextActive,
+                ]}
+              >
                 {y}
               </Text>
             </TouchableOpacity>
@@ -460,7 +623,14 @@ export default function HomeScreen() {
               style={[styles.monthBtn, active && styles.monthBtnActive]}
               onPress={() => setSelectedMonth(num)}
             >
-              <Text style={[styles.monthBtnText, active && styles.monthBtnTextActive]}>{m}</Text>
+              <Text
+                style={[
+                  styles.monthBtnText,
+                  active && styles.monthBtnTextActive,
+                ]}
+              >
+                {m}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -491,7 +661,12 @@ export default function HomeScreen() {
               activeOpacity={0.85}
             >
               <View style={styles.reportCardLeft}>
-                <View style={[styles.catDot, { backgroundColor: badgeColor(item.category) }]} />
+                <View
+                  style={[
+                    styles.catDot,
+                    { backgroundColor: badgeColor(item.category) },
+                  ]}
+                />
               </View>
               <View style={styles.reportCardBody}>
                 <View style={styles.reportCardTop}>
@@ -504,14 +679,32 @@ export default function HomeScreen() {
                   {item.description}
                 </Text>
                 <View style={styles.reportCardBottom}>
-                  <View style={[styles.badge, { backgroundColor: badgeColor(item.category) + '22' }]}>
-                    <Text style={[styles.badgeText, { color: badgeColor(item.category) }]}>
+                  <View
+                    style={[
+                      styles.badge,
+                      { backgroundColor: badgeColor(item.category) + "22" },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.badgeText,
+                        { color: badgeColor(item.category) },
+                      ]}
+                    >
                       {item.category}
                     </Text>
                   </View>
                   {item.amount != null && (
-                    <Text style={styles.reportAmount}>
-                      Rp {item.amount.toLocaleString('id-ID')}
+                    <Text
+                      style={[
+                        styles.reportAmount,
+                        item.transactionType === "out"
+                          ? styles.reportAmountOut
+                          : styles.reportAmountIn,
+                      ]}
+                    >
+                      {item.transactionType === "out" ? "-" : "+"} Rp{" "}
+                      {item.amount.toLocaleString("id-ID")}
                     </Text>
                   )}
                 </View>
@@ -520,6 +713,23 @@ export default function HomeScreen() {
           )}
         />
       )}
+
+      <View style={styles.stickySummary}>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryLabel}>Total bulan ini</Text>
+          <Text style={styles.summaryValue}>
+            Rp {monthTotal.toLocaleString("id-ID")}
+          </Text>
+        </View>
+        <View style={[styles.summaryCard, styles.summaryCardAccent]}>
+          <Text style={[styles.summaryLabel, styles.summaryLabelLight]}>
+            Saldo saat ini
+          </Text>
+          <Text style={[styles.summaryValue, styles.summaryValueLight]}>
+            Rp {currentBalance.toLocaleString("id-ID")}
+          </Text>
+        </View>
+      </View>
 
       {/* ── Modals ── */}
       <ReportFormModal
@@ -532,7 +742,10 @@ export default function HomeScreen() {
       <ReportViewModal
         visible={viewModal}
         report={selectedReport}
-        onClose={() => { setViewModal(false); setSelectedReport(null); }}
+        onClose={() => {
+          setViewModal(false);
+          setSelectedReport(null);
+        }}
         onEdit={openEdit}
         onDelete={handleDelete}
       />
@@ -541,7 +754,10 @@ export default function HomeScreen() {
         visible={editModal}
         mode="edit"
         initialData={selectedReport ?? undefined}
-        onClose={() => { setEditModal(false); setSelectedReport(null); }}
+        onClose={() => {
+          setEditModal(false);
+          setSelectedReport(null);
+        }}
         onSave={handleUpdate}
       />
     </View>
@@ -551,233 +767,363 @@ export default function HomeScreen() {
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F0F7FF' },
+  container: { flex: 1, backgroundColor: "#F0F7FF" },
 
   // Header
   header: {
-    backgroundColor: '#fff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    backgroundColor: "#fff",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 56 : 48,
+    paddingTop: Platform.OS === "ios" ? 56 : 48,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: "#E2E8F0",
   },
   headerLeft: { flex: 1 },
-  greeting: { fontSize: 20, fontWeight: '700', color: '#1E293B' },
-  headerSub: { fontSize: 13, color: '#64748B', marginTop: 2 },
+  greeting: { fontSize: 20, fontWeight: "700", color: "#1E293B" },
+  headerSub: { fontSize: 13, color: "#64748B", marginTop: 2 },
   settingsBtn: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
   },
   settingsIcon: { fontSize: 20 },
 
   // Filter Row
   filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: "#E2E8F0",
   },
-  yearPicker: { flexDirection: 'row', gap: 6 },
+  yearPicker: { flexDirection: "row", gap: 6 },
   yearBtn: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: "#F1F5F9",
   },
-  yearBtnActive: { backgroundColor: '#3B82F6' },
-  yearBtnText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
-  yearBtnTextActive: { color: '#fff' },
+  yearBtnActive: { backgroundColor: "#3B82F6" },
+  yearBtnText: { fontSize: 13, fontWeight: "600", color: "#64748B" },
+  yearBtnTextActive: { color: "#fff" },
   inputBtn: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: "#3B82F6",
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 10,
   },
-  inputBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  inputBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 
   // Month Selector
-  monthScroll: { backgroundColor: '#fff', maxHeight: 52 },
+  monthScroll: { backgroundColor: "#fff", maxHeight: 52 },
   monthRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
   monthBtn: {
     width: 56,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
   },
-  monthBtnActive: { backgroundColor: '#3B82F6' },
-  monthBtnText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
-  monthBtnTextActive: { color: '#fff' },
+  monthBtnActive: { backgroundColor: "#3B82F6" },
+  monthBtnText: { fontSize: 13, fontWeight: "600", color: "#64748B" },
+  monthBtnTextActive: { color: "#fff" },
 
   // Empty
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 40,
   },
   emptyIcon: { fontSize: 56, marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#1E293B', marginBottom: 8 },
-  emptySubtitle: { fontSize: 14, color: '#94A3B8', textAlign: 'center', lineHeight: 20 },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1E293B",
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: "#94A3B8",
+    textAlign: "center",
+    lineHeight: 20,
+  },
 
   // List
-  listContent: { padding: 16, gap: 12 },
+  listContent: { padding: 16, gap: 12, paddingBottom: 124 },
   reportCard: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 14,
     padding: 14,
-    flexDirection: 'row',
-    shadowColor: '#000',
+    flexDirection: "row",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
   },
-  reportCardLeft: { justifyContent: 'flex-start', paddingTop: 4, marginRight: 12 },
+  reportCardLeft: {
+    justifyContent: "flex-start",
+    paddingTop: 4,
+    marginRight: 12,
+  },
   catDot: { width: 10, height: 10, borderRadius: 5 },
   reportCardBody: { flex: 1 },
-  reportCardTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  reportTitle: { flex: 1, fontSize: 15, fontWeight: '700', color: '#1E293B', marginRight: 8 },
-  reportDate: { fontSize: 12, color: '#94A3B8' },
-  reportDesc: { fontSize: 13, color: '#64748B', lineHeight: 18, marginBottom: 8 },
-  reportCardBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  reportAmount: { fontSize: 13, fontWeight: '700', color: '#10B981' },
+  reportCardTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  reportTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1E293B",
+    marginRight: 8,
+  },
+  reportDate: { fontSize: 12, color: "#94A3B8" },
+  reportDesc: {
+    fontSize: 13,
+    color: "#64748B",
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  reportCardBottom: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  reportAmount: { fontSize: 13, fontWeight: "700" },
+  reportAmountIn: { color: "#10B981" },
+  reportAmountOut: { color: "#EF4444" },
+
+  stickySummary: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 16,
+    flexDirection: "row",
+    gap: 12,
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.96)",
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  summaryCardAccent: {
+    backgroundColor: "#1E293B",
+    borderColor: "#1E293B",
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: "#64748B",
+    marginBottom: 4,
+    fontWeight: "600",
+  },
+  summaryLabelLight: {
+    color: "#CBD5E1",
+  },
+  summaryValue: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+  summaryValueLight: {
+    color: "#FFFFFF",
+  },
 
   // Badge
   badge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
   },
-  badgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  badgeText: { fontSize: 11, fontWeight: "700", color: "#fff" },
 
   // Modal shared
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
   },
   modalSheet: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
-    maxHeight: '90%',
+    maxHeight: "90%",
   },
   modalHandle: {
     width: 40,
     height: 4,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: "#CBD5E1",
     borderRadius: 2,
-    alignSelf: 'center',
+    alignSelf: "center",
     marginBottom: 16,
   },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: '#1E293B', marginBottom: 20 },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1E293B",
+    marginBottom: 20,
+  },
 
   // Form modal
   fieldWrapper: { marginBottom: 16 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: '#475569', marginBottom: 6 },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#475569",
+    marginBottom: 6,
+  },
   input: {
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderColor: "#CBD5E1",
     borderRadius: 10,
     padding: 12,
     fontSize: 15,
-    color: '#1E293B',
-    backgroundColor: '#F8FAFC',
+    color: "#1E293B",
+    backgroundColor: "#F8FAFC",
   },
-  inputError: { borderColor: '#EF4444' },
-  textArea: { height: 100, textAlignVertical: 'top' },
-  fieldError: { color: '#EF4444', fontSize: 12, marginTop: 4 },
-  chipRow: { flexDirection: 'row', marginTop: 2 },
+  inputError: { borderColor: "#EF4444" },
+  textArea: { height: 100, textAlignVertical: "top" },
+  fieldError: { color: "#EF4444", fontSize: 12, marginTop: 4 },
+  chipRow: { flexDirection: "row", marginTop: 2 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: "#F1F5F9",
     marginRight: 8,
     borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderColor: "transparent",
   },
-  chipActive: { backgroundColor: '#EFF6FF', borderColor: '#3B82F6' },
-  chipText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
-  chipTextActive: { color: '#3B82F6' },
+  chipActive: { backgroundColor: "#EFF6FF", borderColor: "#3B82F6" },
+  chipText: { fontSize: 13, fontWeight: "600", color: "#64748B" },
+  chipTextActive: { color: "#3B82F6" },
+
+  typeRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  typeChip: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  typeChipActiveIn: {
+    backgroundColor: "#DCFCE7",
+    borderColor: "#22C55E",
+  },
+  typeChipActiveOut: {
+    backgroundColor: "#FEE2E2",
+    borderColor: "#EF4444",
+  },
+  typeChipText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#475569",
+  },
+  typeChipTextActive: {
+    color: "#0F172A",
+  },
 
   // Buttons
-  modalActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
+  modalActions: { flexDirection: "row", gap: 10, marginTop: 20 },
   cancelBtn: {
     flex: 1,
     padding: 14,
     borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
   },
-  cancelBtnText: { fontSize: 15, fontWeight: '600', color: '#64748B' },
+  cancelBtnText: { fontSize: 15, fontWeight: "600", color: "#64748B" },
   saveBtn: {
     flex: 2,
     padding: 14,
     borderRadius: 10,
-    backgroundColor: '#3B82F6',
-    alignItems: 'center',
+    backgroundColor: "#3B82F6",
+    alignItems: "center",
   },
   saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  saveBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" },
 
   // View modal
   viewHeader: { marginBottom: 16 },
   infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: "#F1F5F9",
   },
-  infoLabel: { fontSize: 13, color: '#94A3B8', fontWeight: '500' },
-  infoValue: { fontSize: 14, color: '#1E293B', fontWeight: '600', flex: 1, textAlign: 'right' },
+  infoLabel: { fontSize: 13, color: "#94A3B8", fontWeight: "500" },
+  infoValue: {
+    fontSize: 14,
+    color: "#1E293B",
+    fontWeight: "600",
+    flex: 1,
+    textAlign: "right",
+  },
   descBox: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
     borderRadius: 10,
     padding: 14,
     marginTop: 16,
     marginBottom: 8,
   },
-  descLabel: { fontSize: 12, color: '#94A3B8', fontWeight: '600', marginBottom: 6 },
-  descText: { fontSize: 14, color: '#334155', lineHeight: 20 },
+  descLabel: {
+    fontSize: 12,
+    color: "#94A3B8",
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  descText: { fontSize: 14, color: "#334155", lineHeight: 20 },
   deleteBtn: {
     flex: 1,
     padding: 14,
     borderRadius: 10,
-    backgroundColor: '#FEE2E2',
-    alignItems: 'center',
+    backgroundColor: "#FEE2E2",
+    alignItems: "center",
   },
-  deleteBtnText: { fontSize: 14, fontWeight: '700', color: '#EF4444' },
+  deleteBtnText: { fontSize: 14, fontWeight: "700", color: "#EF4444" },
   editBtn: {
     flex: 2,
     padding: 14,
     borderRadius: 10,
-    backgroundColor: '#3B82F6',
-    alignItems: 'center',
+    backgroundColor: "#3B82F6",
+    alignItems: "center",
   },
-  editBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  editBtnText: { fontSize: 14, fontWeight: "700", color: "#fff" },
   closeBtnFull: {
     marginTop: 10,
     padding: 14,
     borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
   },
-  closeBtnFullText: { fontSize: 14, fontWeight: '600', color: '#64748B' },
+  closeBtnFullText: { fontSize: 14, fontWeight: "600", color: "#64748B" },
 });

@@ -1,27 +1,27 @@
 import {
-    createReport,
-    deleteReport,
-    getActiveReports,
-    getReportsByMonth,
-    updateReport
+  createReport,
+  deleteReport,
+  getActiveReports,
+  getReportsByMonth,
+  updateReport,
 } from "@/services/storage";
 import { getUserName } from "@/services/userService";
 import { Report, ReportFormData } from "@/types";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -69,6 +69,7 @@ const emptyForm = (): ReportFormData => ({
   transactionType: "in",
   amount: undefined,
   date: today.toISOString().split("T")[0],
+  deletedAt: null,
 });
 
 // ─── Report Form Modal ─────────────────────────────────────────────────────────
@@ -104,6 +105,7 @@ function ReportFormModal({
           transactionType: initialData.transactionType,
           amount: initialData.amount,
           date: initialData.date,
+          deletedAt: initialData.deletedAt ?? null,
         });
       } else {
         setForm(emptyForm());

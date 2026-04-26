@@ -2,6 +2,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Report, ReportFormData } from "../types";
 
 const REPORTS_KEY = "reports_data";
+const AUTO_SYNC_DEBOUNCE_MS = 1200;
+
+let autoSyncTimer: ReturnType<typeof setTimeout> | null = null;
+let autoSyncRunning = false;
+let autoSyncQueued = false;
 
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
@@ -44,6 +49,48 @@ const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 };
 
+const flushAutoSyncQueue = async (): Promise<void> => {
+  if (autoSyncRunning) return;
+  if (!autoSyncQueued) return;
+
+  autoSyncRunning = true;
+  try {
+    while (autoSyncQueued) {
+      autoSyncQueued = false;
+
+      try {
+        // Dynamic import keeps sync optional and avoids hard runtime coupling.
+        const { getSpreadsheetConfig, syncReportsToSpreadsheet } =
+          await import("./spreadsheetService");
+        const config = await getSpreadsheetConfig();
+
+        if (!config.url.trim()) {
+          return;
+        }
+
+        await syncReportsToSpreadsheet(config);
+      } catch {
+        // Ignore auto-sync errors; data remains queued as unsynced.
+      }
+    }
+  } finally {
+    autoSyncRunning = false;
+  }
+};
+
+const scheduleAutoSync = (): void => {
+  autoSyncQueued = true;
+
+  if (autoSyncTimer) {
+    clearTimeout(autoSyncTimer);
+  }
+
+  autoSyncTimer = setTimeout(() => {
+    autoSyncTimer = null;
+    void flushAutoSyncQueue();
+  }, AUTO_SYNC_DEBOUNCE_MS);
+};
+
 export const getReports = async (): Promise<Report[]> => {
   try {
     const json = await AsyncStorage.getItem(REPORTS_KEY);
@@ -77,6 +124,7 @@ export const createReport = async (data: ReportFormData): Promise<Report> => {
   };
   reports.push(report);
   await AsyncStorage.setItem(REPORTS_KEY, JSON.stringify(reports));
+  scheduleAutoSync();
   return report;
 };
 
@@ -97,6 +145,7 @@ export const updateReport = async (
   };
   reports[index] = updated;
   await AsyncStorage.setItem(REPORTS_KEY, JSON.stringify(reports));
+  scheduleAutoSync();
   return updated;
 };
 
@@ -107,6 +156,7 @@ export const deleteReport = async (id: string): Promise<void> => {
     r.id === id ? { ...r, deletedAt: now, updatedAt: now, is_sinc: 0 as 0 } : r,
   );
   await AsyncStorage.setItem(REPORTS_KEY, JSON.stringify(updated));
+  scheduleAutoSync();
 };
 
 export const getActiveReports = async (): Promise<Report[]> => {

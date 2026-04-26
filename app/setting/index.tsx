@@ -7,12 +7,12 @@ import {
 import { getUserName, saveUserName } from "@/services/userService";
 import * as Clipboard from "expo-clipboard";
 import { router } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -20,7 +20,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 const APPS_SCRIPT_SNIPPET = `function doPost(e) {
@@ -191,17 +191,7 @@ export default function SettingsScreen() {
 
   const handleOpenTutorialVideo = async () => {
     try {
-      const supported = await Linking.canOpenURL(
-        SPREADSHEET_TUTORIAL_VIDEO_URL,
-      );
-      if (!supported) {
-        Alert.alert(
-          "Error",
-          "Link tutorial tidak bisa dibuka di perangkat ini.",
-        );
-        return;
-      }
-      await Linking.openURL(SPREADSHEET_TUTORIAL_VIDEO_URL);
+      await WebBrowser.openBrowserAsync(SPREADSHEET_TUTORIAL_VIDEO_URL);
     } catch {
       Alert.alert("Error", "Gagal membuka video tutorial.");
     }

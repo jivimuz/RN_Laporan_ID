@@ -1,28 +1,29 @@
 import {
-  createReport,
-  deleteReport,
-  getActiveReports,
-  getReportsByMonth,
-  updateReport,
+    createReport,
+    deleteReport,
+    getActiveReports,
+    getReportsByMonth,
+    updateReport,
 } from "@/services/storage";
 import { getUserName } from "@/services/userService";
 import { Report, ReportFormData } from "@/types";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -443,6 +444,7 @@ const badgeColor = (cat: string) => BADGE_COLORS[cat] ?? "#94A3B8";
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const [userName, setUserName] = useState("");
   const [reports, setReports] = useState<Report[]>([]);
   const [allReports, setAllReports] = useState<Report[]>([]);
@@ -555,6 +557,7 @@ export default function HomeScreen() {
     (sum, report) => sum + signedAmount(report),
     0,
   );
+  const bottomInset = Math.max(insets.bottom, 16);
 
   return (
     <View style={styles.container}>
@@ -655,7 +658,10 @@ export default function HomeScreen() {
         <FlatList
           data={reports}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: 124 + bottomInset },
+          ]}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.reportCard}
@@ -716,7 +722,7 @@ export default function HomeScreen() {
         />
       )}
 
-      <View style={styles.stickySummary}>
+      <View style={[styles.stickySummary, { bottom: bottomInset }]}>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Total bulan ini</Text>
           <Text style={styles.summaryValue}>
@@ -861,7 +867,7 @@ const styles = StyleSheet.create({
   },
 
   // List
-  listContent: { padding: 16, gap: 12, paddingBottom: 124 },
+  listContent: { padding: 16, gap: 12 },
   reportCard: {
     backgroundColor: "#fff",
     borderRadius: 14,

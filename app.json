@@ -1,27 +1,26 @@
 {
   "expo": {
-    "name": "Laporan ID",
-    "slug": "rn-laporan-id",
+    "name": "Laporin ID",
+    "slug": "rn_laporin_id",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
-    "scheme": "rnlaporan",
+    "scheme": "rnlaporin",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/logo.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.INTERNET"
-      ],
-      "package": "com.laporan.id"
+      "permissions": ["android.permission.INTERNET"],
+      "package": "com.laporin.id"
     },
     "web": {
       "output": "static",

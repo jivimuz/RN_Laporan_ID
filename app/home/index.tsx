@@ -1,27 +1,34 @@
 import {
-    createReport,
-    deleteReport,
-    getActiveReports,
-    getReportsByMonth,
-    updateReport,
+  createReport,
+  deleteReport,
+  getActiveReports,
+  getReportsByMonth,
+  updateReport,
 } from "@/services/storage";
 import { getUserName } from "@/services/userService";
 import { Report, ReportFormData } from "@/types";
 import { router, useFocusEffect } from "expo-router";
+import {
+  FileText,
+  PencilLine,
+  Plus,
+  Settings,
+  Trash2,
+} from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -387,10 +394,16 @@ function ReportViewModal({
 
           <View style={styles.modalActions}>
             <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-              <Text style={styles.deleteBtnText}>🗑 Hapus</Text>
+              <View style={styles.btnContentRow}>
+                <Trash2 size={16} color="#EF4444" strokeWidth={2.2} />
+                <Text style={styles.deleteBtnText}>Hapus</Text>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity style={styles.editBtn} onPress={onEdit}>
-              <Text style={styles.editBtnText}>✏️ Edit</Text>
+              <View style={styles.btnContentRow}>
+                <PencilLine size={16} color="#FFFFFF" strokeWidth={2.2} />
+                <Text style={styles.editBtnText}>Edit</Text>
+              </View>
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={styles.closeBtnFull} onPress={onClose}>
@@ -544,6 +557,8 @@ export default function HomeScreen() {
   };
 
   const years = buildYears();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
   const signedAmount = (report: Report) => {
     const amount = typeof report.amount === "number" ? report.amount : 0;
     return report.transactionType === "out" ? -amount : amount;
@@ -572,7 +587,7 @@ export default function HomeScreen() {
           onPress={() => router.push("/setting" as any)}
           activeOpacity={0.7}
         >
-          <Text style={styles.settingsIcon}>⚙️</Text>
+          <Settings size={20} color="#334155" strokeWidth={2.2} />
         </TouchableOpacity>
       </View>
 
@@ -581,17 +596,27 @@ export default function HomeScreen() {
         {/* Year picker */}
         <View style={styles.yearPicker}>
           {years.map((y) => (
+            // Highlight the current year differently when it is not selected.
+            // Selected year stays blue; other years remain secondary.
+
             <TouchableOpacity
               key={y}
               style={[
                 styles.yearBtn,
-                selectedYear === y && styles.yearBtnActive,
+                selectedYear === y
+                  ? styles.yearBtnActive
+                  : y === currentYear
+                    ? styles.yearBtnCurrent
+                    : styles.yearBtnSecondary,
               ]}
               onPress={() => setSelectedYear(y)}
             >
               <Text
                 style={[
                   styles.yearBtnText,
+                  y === currentYear &&
+                    selectedYear !== y &&
+                    styles.yearBtnTextCurrent,
                   selectedYear === y && styles.yearBtnTextActive,
                 ]}
               >
@@ -607,8 +632,25 @@ export default function HomeScreen() {
           onPress={() => setCreateModal(true)}
           activeOpacity={0.8}
         >
-          <Text style={styles.inputBtnText}>+ Input</Text>
+          <View style={styles.btnContentRow}>
+            <Plus size={16} color="#fff" strokeWidth={2.4} />
+            <Text style={styles.inputBtnText}>Input</Text>
+          </View>
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.periodBanner}>
+        <View>
+          <Text style={styles.periodLabel}>Periode aktif</Text>
+          <Text style={styles.periodValue}>
+            {MONTHS[selectedMonth - 1]} {selectedYear}
+          </Text>
+        </View>
+        <View style={styles.periodHintPill}>
+          <Text style={styles.periodHintText}>
+            Bulan sekarang: {MONTHS[currentMonth - 1]}
+          </Text>
+        </View>
       </View>
 
       {/* ── Month Selector ── */}
@@ -622,15 +664,24 @@ export default function HomeScreen() {
         {MONTHS.map((m, i) => {
           const num = i + 1;
           const active = selectedMonth === num;
+          const current = currentMonth === num;
           return (
             <TouchableOpacity
               key={m}
-              style={[styles.monthBtn, active && styles.monthBtnActive]}
+              style={[
+                styles.monthBtn,
+                active
+                  ? styles.monthBtnActive
+                  : current
+                    ? styles.monthBtnCurrent
+                    : styles.monthBtnSecondary,
+              ]}
               onPress={() => setSelectedMonth(num)}
             >
               <Text
                 style={[
                   styles.monthBtnText,
+                  current && !active && styles.monthBtnTextCurrent,
                   active && styles.monthBtnTextActive,
                 ]}
               >
@@ -648,7 +699,7 @@ export default function HomeScreen() {
         </View>
       ) : reports.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>📋</Text>
+          <FileText size={56} color="#93C5FD" strokeWidth={2.1} />
           <Text style={styles.emptyTitle}>Belum ada laporan</Text>
           <Text style={styles.emptySubtitle}>
             {'Tap tombol "+ Input" untuk menambahkan laporan baru'}
@@ -800,7 +851,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  settingsIcon: { fontSize: 20 },
+  btnContentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
 
   // Filter Row
   filterRow: {
@@ -809,19 +865,35 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: "#fff",
+    backgroundColor: "#F8FBFF",
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
   },
-  yearPicker: { flexDirection: "row", gap: 6 },
+  yearPicker: { flexDirection: "row", gap: 8 },
   yearBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: "#F1F5F9",
+    minWidth: 52,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#E6F0FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    alignItems: "center",
   },
-  yearBtnActive: { backgroundColor: "#3B82F6" },
-  yearBtnText: { fontSize: 13, fontWeight: "600", color: "#64748B" },
+  yearBtnSecondary: {
+    backgroundColor: "#EFF6FF",
+    borderColor: "#DBEAFE",
+  },
+  yearBtnCurrent: {
+    backgroundColor: "#DBEAFE",
+    borderColor: "#60A5FA",
+  },
+  yearBtnActive: {
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
+  },
+  yearBtnText: { fontSize: 13, fontWeight: "700", color: "#1D4ED8" },
+  yearBtnTextCurrent: { color: "#1E40AF" },
   yearBtnTextActive: { color: "#fff" },
   inputBtn: {
     backgroundColor: "#3B82F6",
@@ -831,18 +903,79 @@ const styles = StyleSheet.create({
   },
   inputBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 
-  // Month Selector
-  monthScroll: { backgroundColor: "#fff", maxHeight: 52 },
-  monthRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
-  monthBtn: {
-    width: 56,
+  periodBanner: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 10,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DBEAFE",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  periodLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#64748B",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  periodValue: {
+    marginTop: 3,
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+  periodHintPill: {
+    backgroundColor: "#EFF6FF",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: "#F1F5F9",
+    maxWidth: 140,
+  },
+  periodHintText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#1D4ED8",
+    textAlign: "right",
+  },
+
+  // Month Selector
+  monthScroll: { backgroundColor: "#F8FBFF", maxHeight: 58 },
+  monthRow: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
+  monthBtn: {
+    width: 60,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#EAF2FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
     alignItems: "center",
   },
-  monthBtnActive: { backgroundColor: "#3B82F6" },
-  monthBtnText: { fontSize: 13, fontWeight: "600", color: "#64748B" },
+  monthBtnSecondary: {
+    backgroundColor: "#EFF6FF",
+    borderColor: "#DBEAFE",
+  },
+  monthBtnCurrent: {
+    backgroundColor: "#DBEAFE",
+    borderColor: "#60A5FA",
+  },
+  monthBtnActive: {
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
+  },
+  monthBtnText: { fontSize: 13, fontWeight: "700", color: "#1D4ED8" },
+  monthBtnTextCurrent: { color: "#1E40AF" },
   monthBtnTextActive: { color: "#fff" },
 
   // Empty
@@ -852,11 +985,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 40,
   },
-  emptyIcon: { fontSize: 56, marginBottom: 16 },
   emptyTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: "#1E293B",
+    marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {

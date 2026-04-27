@@ -39,12 +39,18 @@ export default function OnboardingScreen() {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
+      <View style={styles.topGlow} />
+      <View style={styles.bottomGlow} />
       <View style={styles.card}>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>Mulai Cepat</Text>
+        </View>
         <Text style={styles.title}>Selamat Datang 👋</Text>
         <Text style={styles.subtitle}>
           Masukkan nama Anda untuk memulai aplikasi
         </Text>
 
+        <Text style={styles.label}>Nama lengkap Pelapor</Text>
         <TextInput
           style={styles.input}
           placeholder="Nama lengkap Anda"
@@ -84,6 +90,27 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
+    overflow: "hidden",
+  },
+  topGlow: {
+    position: "absolute",
+    top: -120,
+    right: -90,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: "#BFDBFE",
+    opacity: 0.45,
+  },
+  bottomGlow: {
+    position: "absolute",
+    bottom: -120,
+    left: -100,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: "#DBEAFE",
+    opacity: 0.7,
   },
   card: {
     backgroundColor: "#fff",
@@ -97,19 +124,41 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 6,
   },
+  badge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#E0F2FE",
+    borderColor: "#7DD3FC",
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 18,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.7,
+    color: "#0369A1",
+    textTransform: "uppercase",
+  },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "700",
     color: "#1E293B",
     marginBottom: 8,
-    textAlign: "center",
   },
   subtitle: {
     fontSize: 15,
     color: "#64748B",
-    textAlign: "center",
-    marginBottom: 32,
+    marginBottom: 20,
     lineHeight: 22,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#475569",
+    marginBottom: 8,
+    marginTop: 4,
   },
   input: {
     borderWidth: 1.5,
@@ -133,6 +182,11 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: "center",
     marginTop: 16,
+    shadowColor: "#2563EB",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    elevation: 4,
   },
   buttonDisabled: {
     opacity: 0.6,

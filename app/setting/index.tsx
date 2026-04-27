@@ -5,9 +5,19 @@ import {
   syncReportsToSpreadsheet,
 } from "@/services/spreadsheetService";
 import { getUserName, saveUserName } from "@/services/userService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Clipboard from "expo-clipboard";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
+import {
+  ChevronLeft,
+  CircleHelp,
+  CloudUpload,
+  Copy,
+  PenLine,
+  PlayCircle,
+  Settings,
+} from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -20,7 +30,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 
 const APPS_SCRIPT_SNIPPET = `function doPost(e) {
@@ -90,12 +100,24 @@ const APPS_SCRIPT_SNIPPET = `function doPost(e) {
 }`;
 
 const SPREADSHEET_TUTORIAL_VIDEO_URL = "https://youtu.be/5IgJ1lr-sNw";
+const LAST_SYNC_AT_KEY = "spreadsheet_last_sync_at";
+
+const formatLastSync = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  return new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+};
 
 export default function SettingsScreen() {
   const monthlyDefaultSheet = getDefaultMonthlySheetName();
   const [userName, setUserName] = useState("");
   const [spreadsheetUrl, setSpreadsheetUrl] = useState("");
   const [sheetName, setSheetName] = useState("");
+  const [lastSyncAt, setLastSyncAt] = useState("");
   const [sheetHelpModal, setSheetHelpModal] = useState(false);
   const [renameModal, setRenameModal] = useState(false);
   const [newName, setNewName] = useState("");
@@ -109,14 +131,16 @@ export default function SettingsScreen() {
   }, []);
 
   const loadSettings = async () => {
-    const [name, config] = await Promise.all([
+    const [name, config, savedLastSyncAt] = await Promise.all([
       getUserName(),
       getSpreadsheetConfig(),
+      AsyncStorage.getItem(LAST_SYNC_AT_KEY),
     ]);
 
     if (name) setUserName(name);
     setSpreadsheetUrl(config.url);
     setSheetName(config.sheetName);
+    setLastSyncAt(savedLastSyncAt ?? "");
   };
 
   const handleRenameOpen = () => {
@@ -172,6 +196,9 @@ export default function SettingsScreen() {
         url: spreadsheetUrl,
         sheetName,
       });
+      const syncedAt = new Date().toISOString();
+      setLastSyncAt(syncedAt);
+      await AsyncStorage.setItem(LAST_SYNC_AT_KEY, syncedAt);
       Alert.alert("Berhasil", "Data laporan berhasil disinkronkan.");
     } catch (error) {
       const message =
@@ -202,13 +229,25 @@ export default function SettingsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backIcon}>←</Text>
+          <ChevronLeft size={20} color="#2563EB" strokeWidth={2.8} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Pengaturan</Text>
         <View style={styles.headerRight} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.heroCard}>
+          <View style={styles.heroTextWrap}>
+            <Text style={styles.heroTitle}>Pengaturan aplikasi</Text>
+            <Text style={styles.heroSubtitle}>
+              Atur profil dan sinkronisasi spreadsheet dari satu tempat.
+            </Text>
+          </View>
+          <View style={styles.heroBadge}>
+            <Text style={styles.heroBadgeText}>Aman & cepat</Text>
+          </View>
+        </View>
+
         {/* Profile Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Profil</Text>
@@ -220,7 +259,7 @@ export default function SettingsScreen() {
                 </Text>
               </View>
               <View style={styles.profileInfo}>
-                <Text style={styles.profileLabel}>Nama</Text>
+                <Text style={styles.profileLabel}>Nama Pelapor</Text>
                 <Text style={styles.profileName}>{userName || "-"}</Text>
               </View>
             </View>
@@ -229,7 +268,12 @@ export default function SettingsScreen() {
               onPress={handleRenameOpen}
               activeOpacity={0.8}
             >
-              <Text style={styles.actionBtnIcon}>✏️</Text>
+              <PenLine
+                size={18}
+                color="#334155"
+                strokeWidth={2.3}
+                style={styles.actionBtnIcon}
+              />
               <Text style={styles.actionBtnText}>Ubah Nama</Text>
             </TouchableOpacity>
           </View>
@@ -238,20 +282,22 @@ export default function SettingsScreen() {
         {/* Data Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Spreadsheet Target</Text>
+            <Text style={styles.sectionTitle}>Target</Text>
             <View style={styles.cardHeaderRow}>
               <TouchableOpacity
                 style={styles.helpBtn}
                 onPress={() => setSheetHelpModal(true)}
                 activeOpacity={0.8}
               >
-                <Text style={styles.helpBtnText}>? Cara Ambil URL</Text>
+                <CircleHelp size={14} color="#0E7490" strokeWidth={2.5} />
+                <Text style={styles.helpBtnText}>Cara Ambil URL</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.copyScriptBtn}
                 onPress={handleCopyScript}
                 activeOpacity={0.8}
               >
+                <Copy size={14} color="#3730A3" strokeWidth={2.5} />
                 <Text style={styles.copyScriptBtnText}>Copy code script</Text>
               </TouchableOpacity>
             </View>
@@ -279,7 +325,11 @@ export default function SettingsScreen() {
             />
 
             <TouchableOpacity
-              style={[styles.actionBtn, styles.actionBtnBlue]}
+              style={[
+                styles.actionBtn,
+                styles.actionBtnBlue,
+                spreadsheetSaving && styles.actionBtnDisabled,
+              ]}
               onPress={handleSpreadsheetConfigSave}
               disabled={spreadsheetSaving}
               activeOpacity={0.8}
@@ -288,7 +338,12 @@ export default function SettingsScreen() {
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <>
-                  <Text style={styles.actionBtnIcon}>⚙️</Text>
+                  <Settings
+                    size={18}
+                    color="#FFFFFF"
+                    strokeWidth={2.3}
+                    style={styles.actionBtnIcon}
+                  />
                   <Text
                     style={[styles.actionBtnText, styles.actionBtnTextWhite]}
                   >
@@ -303,11 +358,27 @@ export default function SettingsScreen() {
               otomatis pakai format bulan-tahun (contoh: {monthlyDefaultSheet}).
             </Text>
           </View>
+          <View style={styles.infoCard}>
+            <View style={styles.infoHeaderRow}>
+              <Text style={styles.infoTitle}>Status sinkronisasi</Text>
+              <View style={styles.infoPill}>
+                <Text style={styles.infoPillText}>Riwayat</Text>
+              </View>
+            </View>
+            <Text style={styles.infoLabel}>Terakhir sync</Text>
+            <Text style={styles.infoValue}>
+              {lastSyncAt ? formatLastSync(lastSyncAt) : "Belum pernah sync"}
+            </Text>
+          </View>
 
           <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Data</Text>
           <View style={styles.card}>
             <TouchableOpacity
-              style={[styles.actionBtn, styles.actionBtnBlue]}
+              style={[
+                styles.actionBtn,
+                styles.actionBtnBlue,
+                syncSaving && styles.actionBtnDisabled,
+              ]}
               onPress={handleSync}
               disabled={syncSaving}
               activeOpacity={0.8}
@@ -316,7 +387,12 @@ export default function SettingsScreen() {
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <>
-                  <Text style={styles.actionBtnIcon}>☁️</Text>
+                  <CloudUpload
+                    size={18}
+                    color="#FFFFFF"
+                    strokeWidth={2.3}
+                    style={styles.actionBtnIcon}
+                  />
                   <Text
                     style={[styles.actionBtnText, styles.actionBtnTextWhite]}
                   >
@@ -329,6 +405,19 @@ export default function SettingsScreen() {
               Data akan dikirim ke spreadsheet target yang sudah disimpan.
             </Text>
           </View>
+        </View>
+
+        <View style={styles.developerCard}>
+          <Text style={styles.developerLabel}>Developer</Text>
+          <Text style={styles.developerName}>Jivi Muzaqi Guntur</Text>
+          <Text style={styles.developerNote}>
+            Aplikasi ini dikembangkan untuk memudahkan pencatatan dan
+            sinkronisasi laporan.
+          </Text>
+          <Text style={[styles.developerLabel, { marginTop: 10 }]}>
+            App Version
+          </Text>
+          <Text style={styles.developerName}>v1.0.0</Text>
         </View>
       </ScrollView>
 
@@ -382,7 +471,12 @@ export default function SettingsScreen() {
               onPress={handleOpenTutorialVideo}
               activeOpacity={0.8}
             >
-              <Text style={styles.actionBtnIcon}>▶️</Text>
+              <PlayCircle
+                size={18}
+                color="#FFFFFF"
+                strokeWidth={2.3}
+                style={styles.actionBtnIcon}
+              />
               <Text style={[styles.actionBtnText, styles.actionBtnTextWhite]}>
                 Tonton Tutorial Video
               </Text>
@@ -460,7 +554,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F0F7FF" },
   header: {
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255,255,255,0.92)",
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
@@ -469,8 +563,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
   },
-  backBtn: { padding: 4, marginRight: 8 },
-  backIcon: { fontSize: 22, color: "#3B82F6" },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#DBEAFE",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
   headerTitle: {
     flex: 1,
     fontSize: 20,
@@ -479,7 +582,70 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   headerRight: { width: 32 },
-  content: { padding: 20 },
+  content: { padding: 20, paddingBottom: 28 },
+  heroCard: {
+    backgroundColor: "#1D4ED8",
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 18,
+    shadowColor: "#1D4ED8",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
+    elevation: 5,
+  },
+  heroTextWrap: { marginBottom: 10 },
+  heroTitle: { fontSize: 22, fontWeight: "800", color: "#fff" },
+  heroSubtitle: {
+    fontSize: 13,
+    color: "#DBEAFE",
+    marginTop: 6,
+    lineHeight: 19,
+  },
+  heroBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  heroBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: 0.6,
+  },
+  infoCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 16,
+    marginTop: 18,
+    borderWidth: 1,
+    borderColor: "#DBEAFE",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  infoHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  infoTitle: { fontSize: 14, fontWeight: "800", color: "#0F172A" },
+  infoPill: {
+    backgroundColor: "#EFF6FF",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  infoPillText: { fontSize: 11, fontWeight: "800", color: "#1D4ED8" },
+  infoLabel: { fontSize: 12, color: "#64748B", marginBottom: 4 },
+  infoValue: { fontSize: 15, fontWeight: "700", color: "#1E293B" },
   section: { marginBottom: 24 },
   sectionHeaderRow: {
     flexDirection: "row",
@@ -497,12 +663,12 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: "#fff",
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
-    shadowRadius: 8,
+    shadowRadius: 10,
     elevation: 3,
   },
   profileRow: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
@@ -527,47 +693,80 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   copyScriptBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    flexDirection: "row",
+    gap: 6,
+    minHeight: 36,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "#E0E7FF",
+    backgroundColor: "#EEF2FF",
     borderWidth: 1,
     borderColor: "#C7D2FE",
+    alignItems: "center",
+    justifyContent: "center",
   },
   copyScriptBtnText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#4338CA",
+    color: "#3730A3",
   },
   actionBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F1F5F9",
-    borderRadius: 10,
-    padding: 14,
-    marginTop: 4,
+    justifyContent: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    minHeight: 52,
+    paddingHorizontal: 14,
+    marginTop: 6,
   },
-  actionBtnBlue: { backgroundColor: "#3B82F6" },
+  actionBtnBlue: {
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
+    shadowColor: "#2563EB",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  actionBtnDisabled: {
+    opacity: 0.65,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   videoTutorialBtn: {
     backgroundColor: "#DC2626",
-    marginTop: 4,
+    borderColor: "#DC2626",
+    shadowColor: "#DC2626",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
+    elevation: 4,
+    marginTop: 6,
   },
-  actionBtnIcon: { fontSize: 18, marginRight: 10 },
-  actionBtnText: { fontSize: 15, fontWeight: "600", color: "#334155" },
+  actionBtnIcon: { marginRight: 10 },
+  actionBtnText: { fontSize: 15, fontWeight: "700", color: "#334155" },
   actionBtnTextWhite: { color: "#fff" },
   hint: { fontSize: 12, color: "#94A3B8", marginTop: 10, textAlign: "center" },
   helpBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    flexDirection: "row",
+    gap: 6,
+    minHeight: 36,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "#E0F2FE",
+    backgroundColor: "#ECFEFF",
     borderWidth: 1,
-    borderColor: "#7DD3FC",
+    borderColor: "#67E8F9",
+    alignItems: "center",
+    justifyContent: "center",
   },
   helpBtnText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#0369A1",
+    color: "#0E7490",
   },
   // Modal
   modalOverlay: {
@@ -610,19 +809,57 @@ const styles = StyleSheet.create({
   modalActions: { flexDirection: "row", gap: 10, marginTop: 16 },
   cancelBtn: {
     flex: 1,
+    minHeight: 50,
     padding: 14,
-    borderRadius: 10,
-    backgroundColor: "#F1F5F9",
+    borderRadius: 12,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
     alignItems: "center",
+    justifyContent: "center",
   },
   cancelBtnText: { fontSize: 15, fontWeight: "600", color: "#64748B" },
   saveBtn: {
     flex: 1,
+    minHeight: 50,
     padding: 14,
-    borderRadius: 10,
-    backgroundColor: "#3B82F6",
+    borderRadius: 12,
+    backgroundColor: "#2563EB",
+    borderWidth: 1,
+    borderColor: "#2563EB",
     alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#2563EB",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 3,
   },
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" },
+  developerCard: {
+    backgroundColor: "#0F172A",
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 8,
+  },
+  developerLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#93C5FD",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  developerName: {
+    marginTop: 6,
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+  developerNote: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#CBD5E1",
+  },
 });

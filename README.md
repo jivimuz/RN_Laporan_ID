@@ -125,6 +125,19 @@ npx eas build --profile preview --platform android
 Pastikan akun Expo, bundle identifier, dan konfigurasi platform sudah sesuai
 sebelum membuat build rilis.
 
+### Build Android manual
+
+Project Android juga dikonfigurasi untuk signing lokal menggunakan keystore
+yang tersedia di root project. Dari folder `android/`, jalankan:
+
+```bash
+./gradlew bundleRelease
+```
+
+Hasil AAB berada di `android/app/build/outputs/bundle/release/app-release.aab`.
+Konfigurasi password signing berada di `android/gradle.properties` dan file
+tersebut tidak boleh di-commit atau dibagikan.
+
 ## Google AdMob
 
 AdMob dikonfigurasi melalui plugin `react-native-google-mobile-ads`. App ID
@@ -147,6 +160,15 @@ agar aplikasi tidak crash karena native module AdMob tidak ada di Expo Go.
 Banner sudah ditampilkan di halaman Home. Helper `showInterstitialAd` dan
 `showRewardedAd` tersedia di `services/adService.ts` untuk dipanggil pada alur
 yang memiliki konteks yang tepat.
+
+Fitur export Excel juga membutuhkan development/release build yang memuat
+`expo-sharing`. Jika binary lama dipakai, rebuild aplikasi setelah instalasi
+dependency:
+
+```bash
+npx expo prebuild
+npx expo run:ios
+```
 
 ## Preview
 

@@ -3,8 +3,7 @@ import { StyleSheet, View } from "react-native";
 
 export function BannerAdSlot() {
   if (
-    Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
-    Constants.executionEnvironment === ExecutionEnvironment.Standalone
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient
   ) {
     return null;
   }

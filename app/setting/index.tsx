@@ -1,4 +1,5 @@
 import { exportReportsToExcel } from "@/services/exportService";
+import { BannerAdSlot } from "@/components/banner-ad";
 import {
   getDefaultMonthlySheetName,
   getSpreadsheetConfig,
@@ -391,6 +392,7 @@ export default function SettingsScreen() {
 
           <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Data</Text>
           <View style={styles.card}>
+            <BannerAdSlot />
             <TouchableOpacity
               style={[
                 styles.actionBtn,

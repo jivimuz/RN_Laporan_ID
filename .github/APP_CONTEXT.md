@@ -148,7 +148,9 @@ Saat mengubah field `SpreadsheetRow` atau payload, perbarui juga snippet
 
 `services/exportService.ts` membuat workbook `.xlsx` dari seluruh laporan aktif,
 menulisnya ke direktori dokumen aplikasi, lalu membuka native share sheet.
-Export tidak mengubah status sinkronisasi dan tidak menghapus data lokal.
+Import `expo-sharing` dilakukan saat export diminta agar Settings tetap dapat
+dibuka di Expo Go atau binary lama. Export tidak mengubah status sinkronisasi
+dan tidak menghapus data lokal.
 
 ## Google AdMob
 
@@ -160,9 +162,10 @@ Google sampai App ID produksi iOS tersedia.
 menyediakan helper interstitial dan rewarded.
 
 Banner memakai Ad Unit ID produksi, sedangkan interstitial dan rewarded masih
-memakai `TestIds.*`. Lakukan EAS/development build karena Expo Go tidak
-memuat native module AdMob. Komponen banner mendeteksi Expo Go/standalone dan
-tidak memuat modul AdMob pada environment tersebut agar route tetap aman.
+memakai `TestIds.*`. Banner ditampilkan di Home dan area Data pada Pengaturan,
+sebelum aksi sync/export. Lakukan EAS/development build karena Expo Go tidak
+memuat native module AdMob. Komponen banner hanya melewati Expo Go agar route
+tetap aman.
 
 ## Aturan Perubahan
 

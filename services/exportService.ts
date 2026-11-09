@@ -1,7 +1,6 @@
 import { getActiveReports } from "@/services/storage";
 import { getUserName } from "@/services/userService";
 import * as FileSystem from "expo-file-system/legacy";
-import * as Sharing from "expo-sharing";
 import * as XLSX from "xlsx";
 
 const formatFileDate = (date: Date): string =>
@@ -19,6 +18,17 @@ export const exportReportsToExcel = async (): Promise<void> => {
 
   if (!FileSystem.documentDirectory) {
     throw new Error("Penyimpanan file tidak tersedia di perangkat ini.");
+  }
+
+  let Sharing: typeof import("expo-sharing");
+  try {
+    // Load the native module only when export is requested.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Sharing = require("expo-sharing");
+  } catch {
+    throw new Error(
+      "Modul berbagi file belum tersedia. Gunakan development build terbaru.",
+    );
   }
 
   if (!(await Sharing.isAvailableAsync())) {

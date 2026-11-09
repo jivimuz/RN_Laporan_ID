@@ -1,3 +1,4 @@
+import { exportReportsToExcel } from "@/services/exportService";
 import {
   getDefaultMonthlySheetName,
   getSpreadsheetConfig,
@@ -14,6 +15,7 @@ import {
   CircleHelp,
   CloudUpload,
   Copy,
+  FileDown,
   PenLine,
   PlayCircle,
   Settings,
@@ -124,6 +126,7 @@ export default function SettingsScreen() {
   const [renameError, setRenameError] = useState("");
   const [renameSaving, setRenameSaving] = useState(false);
   const [syncSaving, setSyncSaving] = useState(false);
+  const [exportSaving, setExportSaving] = useState(false);
   const [spreadsheetSaving, setSpreadsheetSaving] = useState(false);
 
   useEffect(() => {
@@ -208,6 +211,21 @@ export default function SettingsScreen() {
       Alert.alert("Error", `Gagal sinkron ke spreadsheet. ${message}`);
     } finally {
       setSyncSaving(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setExportSaving(true);
+    try {
+      await exportReportsToExcel();
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Silakan coba lagi.";
+      Alert.alert("Gagal export Excel", message);
+    } finally {
+      setExportSaving(false);
     }
   };
 
@@ -404,6 +422,38 @@ export default function SettingsScreen() {
             <Text style={styles.hint}>
               Data akan dikirim ke spreadsheet target yang sudah disimpan.
             </Text>
+            <TouchableOpacity
+              style={[
+                styles.actionBtn,
+                styles.actionBtnGreen,
+                exportSaving && styles.actionBtnDisabled,
+              ]}
+              onPress={handleExport}
+              disabled={exportSaving}
+              activeOpacity={0.8}
+            >
+              {exportSaving ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <FileDown
+                    size={18}
+                    color="#FFFFFF"
+                    strokeWidth={2.3}
+                    style={styles.actionBtnIcon}
+                  />
+                  <Text
+                    style={[styles.actionBtnText, styles.actionBtnTextWhite]}
+                  >
+                    Export ke Excel
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+            <Text style={styles.hint}>
+              Membuat file .xlsx dari seluruh laporan aktif dan membuka menu
+              berbagi perangkat.
+            </Text>
           </View>
         </View>
 
@@ -417,7 +467,7 @@ export default function SettingsScreen() {
           <Text style={[styles.developerLabel, { marginTop: 10 }]}>
             App Version
           </Text>
-          <Text style={styles.developerName}>v1.0.0</Text>
+          <Text style={styles.developerName}>v1.0.1</Text>
         </View>
       </ScrollView>
 
@@ -726,6 +776,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#2563EB",
     borderColor: "#2563EB",
     shadowColor: "#2563EB",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  actionBtnGreen: {
+    backgroundColor: "#16A34A",
+    borderColor: "#16A34A",
+    shadowColor: "#16A34A",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 14,

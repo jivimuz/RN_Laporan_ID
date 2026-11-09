@@ -7,6 +7,7 @@ import {
 } from "@/services/storage";
 import { getUserName } from "@/services/userService";
 import { Report, ReportFormData } from "@/types";
+import { BannerAdSlot } from "@/components/banner-ad";
 import { router, useFocusEffect } from "expo-router";
 import {
   FileText,
@@ -772,6 +773,8 @@ export default function HomeScreen() {
           )}
         />
       )}
+
+      <BannerAdSlot />
 
       <View style={[styles.stickySummary, { bottom: bottomInset }]}>
         <View style={styles.summaryCard}>
